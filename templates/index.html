@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Claude Sonnet Chatbot</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/night-owl.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0f0f0f;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0 20px;
+    }
+
+    /* Navbar styles */
+    nav {
+      background: #111;
+      padding: 15px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 0 10px #00fff755;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    nav h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #00fff7;
+      text-shadow: 0 0 8px #00fff7;
+    }
+
+    nav .nav-links {
+      display: flex;
+      gap: 15px;
+    }
+
+    nav a {
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: color 0.3s;
+    }
+
+    nav a:hover {
+      color: #00fff7;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      color: #00fff7;
+      text-shadow: 0 0 10px #00fff7;
+      margin: 30px 0 20px;
+    }
+
+    #chat-box {
+      background: #1a1a1a;
+      border-radius: 10px;
+      padding: 20px;
+      border: 1px solid #333;
+      max-height: 600px;
+      overflow-y: auto;
+      box-shadow: 0 0 10px #00fff755;
+      margin-bottom: 20px;
+    }
+
+    .message {
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .user {
+      background: #141e30;
+      color: #00d8ff;
+      font-weight: bold;
+    }
+
+    .bot {
+      background: #1f1f1f;
+      color: #ffffff;
+      border-left: 3px solid #00fff7;
+      animation: fadeIn 0.3s ease-in-out;
+      white-space: pre-wrap;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    input {
+      flex-grow: 1;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #333;
+      background: #121212;
+      color: #fff;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .send-btn {
+      background: #00fff7;
+      color: #000;
+    }
+
+    .send-btn:hover {
+      background: #00d0c0;
+    }
+
+    .reset-btn {
+      background: #ff4b5c;
+      color: white;
+    }
+
+    .reset-btn:hover {
+      background: #e03a4c;
+    }
+
+    pre {
+      background: #2e2e2e;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <h2>🤖 Claude AI</h2>
+    <div class="nav-links">
+      <a href="/home">Home</a>
+      <a href="#">Docs</a>
+      <a href="#">About</a>
+    </div>
+  </nav>
+
+  <h1>Claude Sonnet PFD Chatbot</h1>
+
+  <div id="chat-box"></div>
+
+  <div id="controls">
+    <input type="text" id="user-input" placeholder="Type something..." />
+    <button onclick="sendMessage()" class="send-btn">Send</button>
+    <button onclick="resetChat()" class="reset-btn">Reset</button>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+    const userInput = document.getElementById("user-input");
+
+    userInput.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function appendMessage(text, role) {
+      const message = document.createElement("div");
+      message.className = `message ${role}`;
+      const prefix = role === "user" ? "<strong>You:</strong> " : "<strong>Claude:</strong> ";
+      message.innerHTML = marked.parse(prefix + text);
+
+      message.querySelectorAll("pre code").forEach((block) => {
+        hljs.highlightElement(block);
+      });
+
+      chatBox.appendChild(message);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      appendMessage(message, "user");
+      userInput.value = "";
+      userInput.focus();
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+        appendMessage(data.response, "bot");
+      } catch (error) {
+        appendMessage("🚫 Error connecting to the server.", "bot");
+        console.error("Error:", error);
+      }
+    }
+
+    async function resetChat() {
+      try {
+        await fetch("/reset", { method: "POST" });
+        chatBox.innerHTML = "";
+        userInput.value = "";
+        userInput.focus();
+      } catch (error) {
+        console.error("Error resetting chat:", error);
+      }
+    }
+  </script>
+</body>
+</html>
